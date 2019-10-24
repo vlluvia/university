@@ -1,11 +1,11 @@
-#dup 伪指令
+# dup 伪指令
 
 * dd 100 dup ('1') -> 填充100次'1'
 * dd 100 dup (1) -> 填充100次1
 
 
 ## 代码
-```$xslt
+```
 assume cs:code,ds:data,ss:stack
     
 data segment

@@ -1,6 +1,6 @@
 
 
-#dd 伪指令
+# dd 伪指令
 define dword
 
 * db (define byte) :    8位
