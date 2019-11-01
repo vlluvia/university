@@ -15,7 +15,7 @@
     mov bl,10
     
     mul bl
-    
+    、
     ; 16位
     mov ax,1000
     mov bx,200
