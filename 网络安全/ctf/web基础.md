@@ -2,6 +2,8 @@
 # web基础
 
 * php攻击
+    - MD5 Length Extension Attack
+    - ### 弱类型漏洞
 
 
 ## php攻击
@@ -35,3 +37,11 @@ $ hashpump -s f3d366138601b5afefbd4fc15731692e -d /etc/hosts -k 32 -a /etc/hosts
 * 弱类型漏洞之 ==
 
 > password=240610708
+
+
+### php流
+* 漏洞
+> php://filter
+> ?file=php://filter/vonvert.base64-encode/resource=index.php
+
+
