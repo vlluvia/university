@@ -7,6 +7,8 @@
 
 * proxytunnle
 
+
+
 ## socat
 ```shell 
     socat - tcp:1.1.1.1:80
@@ -40,3 +42,7 @@
     3. 镶嵌ssh隧道
         ssh -CNfg -D 7000 root@127.0.0.1 -p 2222
 ```
+
+
+
+
