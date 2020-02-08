@@ -5,6 +5,7 @@
 * [Exploit模块](./Metasploit-Exploit模块.md)
 * [payload](./Metasploit-payload.md)
 * [Meterpreter](./Metasploit-Meterpreter.md)
+* [信息收集](./Metasploit-信息收集.md)
 
 ---
 ## 介绍
