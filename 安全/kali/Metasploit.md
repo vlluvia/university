@@ -6,6 +6,8 @@
 * [payload](./Metasploit-payload.md)
 * [Meterpreter](./Metasploit-Meterpreter.md)
 * [信息收集](./Metasploit-信息收集.md)
+* [弱点扫描](./Metasploit-弱点扫描.md)
+* [客户端渗透](./Metasploit-客户端渗透.md)
 
 ---
 ## 介绍
