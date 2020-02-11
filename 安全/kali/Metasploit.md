@@ -9,6 +9,7 @@
 * [弱点扫描](./Metasploit-弱点扫描.md)
 * [客户端渗透](./Metasploit-客户端渗透.md)
 * [后渗透测试阶段](./Metasploit-后渗透测试阶段.md)
+* [后渗透测试阶段（二）](./Metasploit-后渗透测试阶段（二）.md)
 
 
 ---
