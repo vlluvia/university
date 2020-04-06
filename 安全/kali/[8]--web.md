@@ -7,6 +7,7 @@
 * [扫描工具-w3af之身份认证和截断代理](./[8-3]--扫描工具-w3af之身份认证和截断代理.md)
 * [扫描工具-arachni](./[8-4]--扫描工具-arachni.md)
 * [扫描工具-OWASP_ZAP](./[8-5--扫描工具-OWASP_ZAP.md)
+* [扫描工具-burpsuite](./[8-6--扫描工具-burpsuite.md)
 
 * [xss](./Web-xss.md)
 
