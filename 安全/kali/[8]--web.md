@@ -14,6 +14,7 @@
 * [WebShell](./[8-19]--WebShell.md)
 * [HTTPS攻击](./[8-20]--HTTPS攻击.md)
 * [SSL 中间人攻击](./[8-21]--HTTPS-SSL中间人攻击.md)
+* [SSL 拒绝访问攻击](./[8-22]--HTTPS-SSL拒绝访问攻击.md)
 * [https](./Web-https.md)
 * [字典](./Web-字典.md)
 * [中间人攻击](./Web-中间人攻击.md)
