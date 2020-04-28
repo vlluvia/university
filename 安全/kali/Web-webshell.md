@@ -1,5 +1,0 @@
-
-# webshell
-
-* Weevely
-
