@@ -52,3 +52,75 @@
 1. Microsoft's x64 ABI
 2. SysV x64 ABI
 
+
+## 求解flag
+* 直接内存获取
+* 对算法进行逆变换操作
+* 线性变化求解
+
+## 自动化逆向
+> http://pythonarsenal.com/
+
+### IDAPython
+> https://www.hex-rays.com/products/ida/support/idapython_docs/
+### PythonGdb
+> https://sourceware.org/gdb/wiki/PythonGdbTutorial
+### pydbg
+
+### Angr
+> https://docs.angr.io  
+> https://docs.angr.io/docs/examples.html
+
+
+## 干扰分析技术及破解方法
+### 花指令
+* 原理
+> 原始的代码中插入一段无用的或者能干扰反汇编引擎的代码
+
+* 基本思路
+> 在IDA手动将花指令patch成nop空指令
+
+### 反调试
+* linux下常见的反调试方法
+1. ptrace
+
+2. proc文件系统检测
+
+3. 父进程检测
+
+### 加壳
+> UPX壳
+
+### 控制流混淆
+
+### 双进程保护
+
+### 虚拟机保护
+
+## 脚本语言的逆向
+
+### .NET程序逆向
+* 识别.NET程序
+> PEID
+
+* 反编译.NET程序
+> Reflector
+
+* 反混淆.NET程序
+> de4dot
+
+### Python程序逆向
+* 常见Python打包工具包
+> py2exe（http://www.py2exe.org）  
+> pyinstaller（http://pyinstaller.org）
+
+* 字节码文件的提取
+> py2exe打包的程序，提取脚本（https://github.com/matiasb/unpy2exe）  
+> pyinstall打包的程序，提取脚本（https://github.com/Ravensss/pyinstxtractor）
+
+* 字节码文件的反编译
+> uncompyle2（https://github.com/wibiti/uncompyle2）
+
+### Java程序逆向
+* jar的反编译
+> jad、jd-gui、Fernflower
