@@ -28,4 +28,37 @@ select CAST(premiered/10*10 AS TEXT) || 's' decade,round(avg(rating),2) avgs, ma
 select t.primary_title,r.votes from crew c, people p, titles t, ratings r where c.title_id=t.title_id and c.person_id=p.person_id and t.title_id=r.title_id and p.name like '%Cruise%' and p.born = 1962 order by r.votes  desc limit 10;
 ```
 
+# q7_year_of_thieves
+```sql 
+select count(distinct title_id) from titles where premiered = (select premiered from titles where primary_title = 'Army of Thieves');
+```
+
+# q8_kidman_colleagues
+```sql
+select distinct name from people where person_id in (
+    select person_id from crew where category in ('actor' ,'actress')
+        and title_id in (
+            select title_id from crew where person_id = (
+                select person_id from people where name='Nicole Kidman'                            
+                )
+            )
+        ) order by name;
+```
+
+# q9_9th_decile_ratings
+```sql
+with  a as(
+   select t.title_id,p.person_id, p.name from crew c, people p,titles t where c.person_id=p.person_id and c.title_id=t.title_id and p.born=1955 and t.type='movie'
+)
+
+select t.name, t.avgr from (
+	select a.name, round(avg(r.rating),2) avgr, NTILE(10) OVER (ORDER BY avg(r.rating) asc) rg  from ratings r, a where r.title_id=a.title_id group by a.person_id order by avgr desc, a.name asc
+) as t where t.rg = 9;
+```
+
+# q10_house_of_the_dragon
+```sql 
+select group_concat(name) from (select distinct a.title name from akas a, titles t where a.title_id=t.title_id and t.primary_title='House of the Dragon' order by name) ;
+```
+
 
