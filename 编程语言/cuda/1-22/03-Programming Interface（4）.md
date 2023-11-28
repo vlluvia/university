@@ -206,6 +206,344 @@ cudaGraphLaunch(deviceGraphExec3, stream);
 * 3.2.8.7.7.1.3. Device Graph Update
 > 设备图只能从主机更新，并且必须在可执行图更新时重新上传到设备，才能使更改生效。这可以使用上一节中概述的相同方法实现。与主机图不同，在应用更新时从设备启动设备图将导致未定义的行为。
 
+###### 3.2.8.7.7.2. Device Launch
+> 设备图可以通过 从主机和设备启动 cudaGraphLaunch() ，这在设备上具有与主机上相同的签名。设备图通过主机和设备上的同一句柄启动。从设备启动时，必须从另一个图形启动设备图。
+
+* 3.2.8.7.7.2.1. Device Launch Modes
+> 与主机启动不同，设备图不能在常规 CUDA 流中启动，只能在不同的命名流中启动，每个命名流表示特定的启动模式
+
+![img.png](img/3-2-8-7-7-2-1.png)
+
+* 3.2.8.7.7.2.1.1. Fire and Forget Launch
+> 顾名思义，即发即弃启动会立即提交给 GPU，并且它独立于启动图运行。在即发即弃方案中，启动图是父项，启动图是子项。
+
+![img.png](img/3-2-8-7-7-2-1-1.png)
+``` 
+__global__ void launchFireAndForgetGraph(cudaGraphExec_t graph) {
+    cudaGraphLaunch(graph, cudaStreamGraphFireAndForget);
+}
+
+void graphSetup() {
+    cudaGraphExec_t gExec1, gExec2;
+    cudaGraph_t g1, g2;
+
+    // Create, instantiate, and upload the device graph.
+    create_graph(&g2);
+    cudaGraphInstantiate(&gExec2, g2, cudaGraphInstantiateFlagDeviceLaunch);
+    cudaGraphUpload(gExec2, stream);
+
+    // Create and instantiate the launching graph.
+    cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
+    launchFireAndForgetGraph<<<1, 1, 0, stream>>>(gExec2);
+    cudaStreamEndCapture(stream, &g1);
+    cudaGraphInstantiate(&gExec1, g1);
+
+    // Launch the host graph, which will in turn launch the device graph.
+    cudaGraphLaunch(gExec1, stream);
+}
+```
+
+* 3.2.8.7.7.2.1.2. Graph Execution Environments
+> 为了充分理解设备端同步模型，首先需要了解执行环境的概念。  
+> 当从设备启动图形时，它将启动到自己的执行环境中。给定图的执行环境将图中的所有工作以及所有生成的即发即弃工作封装在图中。当图形完成执行并且所有生成的子工作都已完成时，可以认为该图形已完成。  
+
+![img.png](img/3-2-8-7-7-2-1-2.png)
+> 这些环境也是分层的，因此图形环境可以包含多个级别的子环境，这些子环境来自即发即弃启动。
+
+![img.png](img/3-2-8-7-7-2-1-2_2.png)
+
+> 当从主机启动图形时，存在一个流环境，该环境是启动的图形的执行环境的父级。流环境封装了作为整个启动的一部分生成的所有工作。当整个流环境标记为完成时，流启动即完成（即，依赖于下游的工作现在可以运行）。
+
+![img.png](img/3-2-8-7-7-2-1-2_3.png)
+
+* 3.2.8.7.7.2.1.3. Tail Launch
+> 与主机上不同，无法通过传统方法（如 cudaDeviceSynchronize() 或 cudaStreamSynchronize() ）与 GPU 中的设备图同步。相反，为了启用串行工作依赖关系，提供了不同的启动模式 - 尾部启动 - 以提供类似的功能。   
+> 当图的环境被认为是完整的时，即当图及其所有子项都完成时，就会执行尾部启动。当图形完成时，尾部启动列表中下一个图形的环境将替换已完成的环境作为父环境的子环境。与即发即弃的启动一样，一个图形可以有多个图形排队等待尾部启动。  
+
+![img.png](img/3-2-8-7-7-2-1-2_4.png)
+
+``` 
+__global__ void launchTailGraph(cudaGraphExec_t graph) {
+    cudaGraphLaunch(graph, cudaStreamGraphTailLaunch);
+}
+
+void graphSetup() {
+    cudaGraphExec_t gExec1, gExec2;
+    cudaGraph_t g1, g2;
+
+    // Create, instantiate, and upload the device graph.
+    create_graph(&g2);
+    cudaGraphInstantiate(&gExec2, g2, cudaGraphInstantiateFlagDeviceLaunch);
+    cudaGraphUpload(gExec2, stream);
+
+    // Create and instantiate the launching graph.
+    cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
+    launchTailGraph<<<1, 1, 0, stream>>>(gExec2);
+    cudaStreamEndCapture(stream, &g1);
+    cudaGraphInstantiate(&gExec1, g1);
+
+    // Launch the host graph, which will in turn launch the device graph.
+    cudaGraphLaunch(gExec1, stream);
+}
+```
+> 由给定图形排队的尾部启动将按照排队时间的顺序一次执行一次。因此，第一个排队的图形将首先运行，然后是第二个，依此类推。
+
+![img.png](img/3-2-8-7-7-2-1-2_5.png)
+
+> 由尾部图排队的尾部启动将在尾部启动列表中先前的图排队的尾部启动之前执行。这些新的尾部启动将按照其排队顺序执行。
+
+![img.png](img/3-2-8-7-7-2-1-2_6.png)
+
+> 一个图形最多可以有 255 个待处理的尾部启动。
+
+
+* 3.2.8.7.7.2.1.3.1. Tail Self-launch
+
+> 设备图可以自行排队进行尾部启动，尽管给定图一次只能有一个自启动排队。为了查询当前正在运行的设备图以便重新启动它，添加了一个新的设备端函数：
+
+``` 
+cudaGraphExec_t cudaGetCurrentGraphExec();
+```
+> 如果当前正在运行的图形是设备图形，则此函数返回该图形的句柄。如果当前正在执行的内核不是设备图中的节点，则此函数将返回 NULL。
+
+``` 
+__device__ int relaunchCount = 0;
+
+__global__ void relaunchSelf() {
+    int relaunchMax = 100;
+
+    if (threadIdx.x == 0) {
+        if (relaunchCount < relaunchMax) {
+            cudaGraphLaunch(cudaGetCurrentGraphExec(), cudaStreamGraphTailLaunch);
+        }
+
+        relaunchCount++;
+    }
+}
+```
+
+
+* 3.2.8.7.7.2.1.4. Sibling Launch
+> Sibling Launch（同级启动）是即发即弃启动的一种变体，其中图形不是作为启动图的执行环境的子项启动，而是作为启动图父环境的子项启动。同级启动等同于从启动图的父环境进行即发即弃启动。
+
+![img.png](img/3-2-8-7-7-2-1-4_1.png)
+``` 
+__global__ void launchSiblingGraph(cudaGraphExec_t graph) {
+    cudaGraphLaunch(graph, cudaStreamGraphFireAndForgetAsSibling);
+}
+
+void graphSetup() {
+    cudaGraphExec_t gExec1, gExec2;
+    cudaGraph_t g1, g2;
+
+    // Create, instantiate, and upload the device graph.
+    create_graph(&g2);
+    cudaGraphInstantiate(&gExec2, g2, cudaGraphInstantiateFlagDeviceLaunch);
+    cudaGraphUpload(gExec2, stream);
+
+    // Create and instantiate the launching graph.
+    cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
+    launchSiblingGraph<<<1, 1, 0, stream>>>(gExec2);
+    cudaStreamEndCapture(stream, &g1);
+    cudaGraphInstantiate(&gExec1, g1);
+
+    // Launch the host graph, which will in turn launch the device graph.
+    cudaGraphLaunch(gExec1, stream);
+}
+```
+
+--- 
+##### 3.2.8.7.8. Conditional Graph Nodes
+> Conditional nodes（条件节点）允许有条件地执行和循环条件节点中包含的图形。这允许动态和迭代工作流完全在图形中表示，并释放主机 CPU 以并行执行其他工作。  
+> 当满足条件节点的依赖关系时，将在设备上执行条件值的评估。条件节点可以是以下类型之一
+> 1. 如果条件 IF nodes （ IF 节点）在执行时条件值不为零，则执行一次其主体图。
+> 2. 如果条件 WHILE nodes （WHILE 节点）在执行时条件值不为零，则该节点将执行其主体图，并将继续执行其主体图，直到条件值为零。
+
+> 条件值由条件句柄访问，该句柄必须在节点之前创建。条件值可以通过设备代码使用 来 cudaGraphSetConditional() 设置。在创建句柄时，还可以指定在每次图形启动时应用的默认值。   
+> 创建条件节点时，将创建一个空图形，并将句柄返回给用户，以便可以填充该图形。可以使用图形 API 或 cudaStreamBeginCaptureToGraph（） 填充此条件正文图。   
+> 条件节点可以嵌套。
+
+
+###### 3.2.8.7.8.1. Conditional Handles
+> A condition value is represented by cudaGraphConditionalHandle and is created by cudaGraphConditionalHandleCreate().   
+> The handle must be associated with a single conditional node. Handles cannot be destroyed.  
+> 如果 cudaGraphCondAssignDefault 在创建句柄时指定，则在每次图形启动之前，条件值将初始化为指定的默认值。如果未提供此标志，则由用户在测试条件节点的内核上游初始化条件值。如果条件值未由这些方法之一初始化，则其值未定义。
+
+###### 3.2.8.7.8.2. Condtional Node Body Graph Requirements
+* General requirements
+  * 图形的节点必须全部驻留在单个设备上
+  * 图只能包含内核节点、memcpy节点、memset节点、子图节点和条件节点
+
+* Kernel nodes
+  * 不允许在图形中使用内核的 CUDA 动态并行性
+  * 只要不使用 MPS，就允许合作发射
+
+* Memcpy nodes
+  * 仅允许涉及device memory和/或固定设备映射主机内存的副本
+  * 不允许涉及 CUDA 数组的副本。
+  * 在实例化时，这两个操作数都必须可从当前设备访问。请注意，复制操作将从图形所在的设备执行，即使它以另一台设备上的内存为目标也是如此
+
+
+###### 3.2.8.7.8.3. Conditional IF Nodes
+> 如果 IF 节点执行时条件不为零，则该节点的主体图将执行一次。下图描述了一个 3 节点图，其中中间节点 B 是条件节点：
+
+![img.png](img/3-2-8-7-8-3_1.png)
+
+> 以下代码演示了如何创建包含 IF 条件节点的图形。条件的默认值是使用上游内核设置的。条件的正文是使用 graph API 填充的。
+
+``` 
+__global__ void setHandle(cudaGraphConditionalHandle handle)
+{
+    ...
+    cudaGraphSetConditional(handle, value);
+    ...
+}
+
+void graphSetup() {
+    cudaGraph_t graph;
+    cudaGraphExec_t graphExec;
+    cudaGraphNode_t node;
+    void *kernelArgs[1];
+    int value = 1;
+
+    cudaGraphCreate(&graph, 0);
+
+    cudaGraphConditionalHandle handle;
+    cudaGraphConditionalHandleCreate(&handle, graph);
+
+    // Use a kernel upstream of the conditional to set the handle value
+    cudaGraphNodeParams params = { cudaGraphNodeTypeKernel };
+    params.kernel.func = (void *)setHandle;
+    params.kernel.gridDim.x = params.kernel.gridDim.y = params.kernel.gridDim.z = 1;
+    params.kernel.blockDim.x = params.kernel.blockDim.y = params.kernel.blockDim.z = 1;
+    params.kernel.kernelParams = kernelArgs;
+    kernelArgs[0] = &handle;
+    cudaGraphAddNode(&node, graph, NULL, 0, &params);
+
+    cudaGraphNodeParams cParams = { cudaGraphNodeTypeConditional };
+    cParams.conditional.handle = handle;
+    cParams.conditional.type   = cudaGraphCondTypeIf;
+    cParams.conditional.size   = 1;
+    cudaGraphAddNode(&node, graph, &node, 1, &cParams);
+
+    cudaGraph_t bodyGraph = cParams.conditional.phGraph_out[0];
+
+    // Populate the body of the conditional node
+    ...
+    cudaGraphAddNode(&node, bodyGraph, NULL, 0, &params);
+
+    cudaGraphInstantiate(&graphExec, graph, NULL, NULL, 0);
+    cudaGraphLaunch(graphExec, 0);
+    cudaDeviceSynchronize();
+
+    cudaGraphExecDestroy(graphExec);
+    cudaGraphDestroy(graph);
+}
+```
+
+
+###### 3.2.8.7.8.4. Conditional WHILE Nodes
+> WHILE 节点的主体图将一直执行，直到条件为非零。该条件将在执行节点时和主体图完成后进行评估。下图描述了一个 3 节点图，其中中间节点 B 是条件节点
+
+![img.png](img/3-2-8-7-8-3_2.png)
+
+> 下面的代码演示了如何创建包含 WHILE 条件节点的图形。句柄是使用 cudaGraphCondAssignDefault 创建的，以避免对上游内核的需求。条件的正文是使用 graph API 填充的。
+
+``` 
+__global__ void loopKernel(cudaGraphConditionalHandle handle)
+{
+    static int count = 10;
+    cudaGraphSetConditional(handle, --count ? 1 : 0);
+}
+
+void graphSetup() {
+    cudaGraph_t graph;
+    cudaGraphExec_t graphExec;
+    cudaGraphNode_t node;
+    void *kernelArgs[1];
+
+    cuGraphCreate(&graph, 0);
+
+    cudaGraphConditionalHandle handle;
+    cudaGraphConditionalHandleCreate(&handle, graph, 1, cudaGraphCondAssignDefault);
+
+    cudaGraphNodeParams cParams = { cudaGraphNodeTypeConditional };
+    cParams.conditional.handle = handle;
+    cParams.conditional.type   = cudaGraphCondTypeWhile;
+    cParams.conditional.size   = 1;
+    cudaGraphAddNode(&node, graph, NULL, 0, &cParams);
+
+    cudaGraph_t bodyGraph = cParams.conditional.phGraph_out[0];
+
+    cudaGraphNodeParams params = { cudaGraphNodeTypeKernel };
+    params.kernel.func = (void *)loopKernel;
+    params.kernel.gridDim.x = params.kernel.gridDim.y = params.kernel.gridDim.z = 1;
+    params.kernel.blockDim.x = params.kernel.blockDim.y = params.kernel.blockDim.z = 1;
+    params.kernel.kernelParams = kernelArgs;
+    kernelArgs[0] = &handle;
+    cudaGraphAddNode(&node, bodyGraph, NULL, 0, &params);
+
+    cudaGraphInstantiate(&graphExec, graph, NULL, NULL, 0);
+    cudaGraphLaunch(graphExec, 0);
+    cudaDeviceSynchronize();
+
+    cudaGraphExecDestroy(graphExec);
+    cudaGraphDestroy(graph);
+}
+```
+
+---
+
+
+#### 3.2.8.8. Events
+> The runtime 还提供了一种密切监视设备进度以及执行准确计时的方法，方法是让应用程序异步记录程序中任何点的事件，并在这些事件完成时进行查询。当事件之前的所有任务（或可选的给定流中的所有命令）都已完成时，事件已完成。stream zero 中的事件在完成所有流中的所有上述任务和命令后完成。
+
+##### 3.2.8.8.1. Creation and Destruction
+The following code sample creates two events:
+
+``` 
+cudaEvent_t start, stop;
+cudaEventCreate(&start);
+cudaEventCreate(&stop);
+```
+They are destroyed this way:
+```
+cudaEventDestroy(start);
+cudaEventDestroy(stop);
+```
+
+##### 3.2.8.8.2. Elapsed Time
+
+在 Creation and Destruction 中创建的事件可用于按以下方式对 Creation and Destruction 的代码示例进行计时：
+``` 
+cudaEventRecord(start, 0);
+for (int i = 0; i < 2; ++i) {
+    cudaMemcpyAsync(inputDev + i * size, inputHost + i * size,
+                    size, cudaMemcpyHostToDevice, stream[i]);
+    MyKernel<<<100, 512, 0, stream[i]>>>
+               (outputDev + i * size, inputDev + i * size, size);
+    cudaMemcpyAsync(outputHost + i * size, outputDev + i * size,
+                    size, cudaMemcpyDeviceToHost, stream[i]);
+}
+cudaEventRecord(stop, 0);
+cudaEventSynchronize(stop);
+float elapsedTime;
+cudaEventElapsedTime(&elapsedTime, start, stop);
+```
+---
+#### 3.2.8.9. Synchronous Calls
+调用同步函数时，在设备完成请求的任务之前，不会将控制权返回给主机线程。在主机线程执行任何其他 CUDA 调用之前，可以通过使用某些特定标志进行调用 cudaSetDeviceFlags() 来指定主机线程是否会产生、阻塞或旋转（有关详细信息，请参阅参考手册）。
+
+
+
+
+
+
+
+
+
+
+
 
 
 
